@@ -10,15 +10,15 @@ module.exports = async function handler(req, res) {
 
     const clientId = process.env.TWITCH_CLIENT_ID
     const token = process.env.TWITCH_ACCESS_TOKEN
-    if (!clientId || !token) return res.status(500).json({ error: "Missing env vars" })
+    if (!clientId || !token) {
+      return res.status(500).json({ error: "Missing env vars", hasClientId: !!clientId, hasToken: !!token })
+    }
 
-    // ✅ bessere Felder + besser sortiert (popularity / release date)
+    // ✅ kein sort bei search
     const body = `
       search "${q.replace(/"/g, '\\"')}";
       fields name, first_release_date, game_modes, category, status, version_title;
-      where category = 0; 
-      sort first_release_date desc;
-      limit 5;
+      limit 10;
     `
 
     const r = await fetch("https://api.igdb.com/v4/games", {
@@ -27,6 +27,7 @@ module.exports = async function handler(req, res) {
         "Client-ID": clientId,
         Authorization: `Bearer ${token}`,
         "Content-Type": "text/plain",
+        Accept: "application/json",
       },
       body,
     })
