@@ -1,13 +1,8 @@
 module.exports = async function handler(req, res) {
-  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*")
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS")
   res.setHeader("Access-Control-Allow-Headers", "Content-Type")
-
-  if (req.method === "OPTIONS") {
-    res.statusCode = 204
-    return res.end()
-  }
+  if (req.method === "OPTIONS") return res.status(204).end()
 
   try {
     const q = String(req.query.q || "").trim()
@@ -15,14 +10,15 @@ module.exports = async function handler(req, res) {
 
     const clientId = process.env.TWITCH_CLIENT_ID
     const token = process.env.TWITCH_ACCESS_TOKEN
-    if (!clientId || !token) {
-      return res.status(500).json({ error: "Missing env vars", hasClientId: !!clientId, hasToken: !!token })
-    }
+    if (!clientId || !token) return res.status(500).json({ error: "Missing env vars" })
 
+    // ✅ bessere Felder + besser sortiert (popularity / release date)
     const body = `
       search "${q.replace(/"/g, '\\"')}";
-      fields name, first_release_date, game_modes;
-      limit 1;
+      fields name, first_release_date, game_modes, category, status, version_title;
+      where category = 0; 
+      sort first_release_date desc;
+      limit 5;
     `
 
     const r = await fetch("https://api.igdb.com/v4/games", {
