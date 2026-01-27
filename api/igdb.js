@@ -1,3 +1,4 @@
+// Vercel: api/igdb.js  (Proxy)
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*")
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS")
@@ -14,10 +15,9 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: "Missing env vars", hasClientId: !!clientId, hasToken: !!token })
     }
 
-    // ✅ kein sort bei search
     const body = `
       search "${q.replace(/"/g, '\\"')}";
-      fields name, first_release_date, game_modes, category, status, version_title;
+      fields name, first_release_date, game_modes;
       limit 10;
     `
 
