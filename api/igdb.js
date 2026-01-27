@@ -1,21 +1,22 @@
 module.exports = async function handler(req, res) {
+  // CORS
+  res.setHeader("Access-Control-Allow-Origin", "*")
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS")
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type")
+
+  if (req.method === "OPTIONS") {
+    res.statusCode = 204
+    return res.end()
+  }
+
   try {
     const q = String(req.query.q || "").trim()
-    if (!q) {
-      res.statusCode = 400
-      return res.json({ error: "Missing q parameter" })
-    }
+    if (!q) return res.status(400).json({ error: "Missing q" })
 
     const clientId = process.env.TWITCH_CLIENT_ID
     const token = process.env.TWITCH_ACCESS_TOKEN
-
     if (!clientId || !token) {
-      res.statusCode = 500
-      return res.json({
-        error: "Missing env vars",
-        hasClientId: Boolean(clientId),
-        hasToken: Boolean(token),
-      })
+      return res.status(500).json({ error: "Missing env vars", hasClientId: !!clientId, hasToken: !!token })
     }
 
     const body = `
@@ -35,23 +36,10 @@ module.exports = async function handler(req, res) {
     })
 
     const text = await r.text()
+    if (!r.ok) return res.status(r.status).json({ error: "IGDB failed", status: r.status, response: text })
 
-    if (!r.ok) {
-      res.statusCode = r.status
-      return res.json({
-        error: "IGDB request failed",
-        status: r.status,
-        response: text,
-      })
-    }
-
-    res.statusCode = 200
-    return res.send(text)
-  } catch (err) {
-    res.statusCode = 500
-    return res.json({
-      error: "Function crashed",
-      message: err?.message || String(err),
-    })
+    return res.status(200).send(text)
+  } catch (e) {
+    return res.status(500).json({ error: "crash", message: e?.message || String(e) })
   }
 }
