@@ -1,6 +1,5 @@
 // api/igdb.js
 const mem = globalThis.__IGDB_MEM__ || (globalThis.__IGDB_MEM__ = new Map())
-// mem: key -> { t:number, v:string }
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*")
@@ -15,25 +14,21 @@ module.exports = async function handler(req, res) {
     const clientId = process.env.TWITCH_CLIENT_ID
     const token = process.env.TWITCH_ACCESS_TOKEN
     if (!clientId || !token) {
-      return res.status(500).json({
-        error: "Missing env vars",
-        hasClientId: Boolean(clientId),
-        hasToken: Boolean(token),
-      })
+      return res.status(500).json({ error: "Missing env vars", hasClientId: !!clientId, hasToken: !!token })
     }
 
-    // ✅ server cache (30 min)
     const key = q.toLowerCase()
-    const hit = mem.get(key)
     const now = Date.now()
+    const hit = mem.get(key)
     if (hit && now - hit.t < 30 * 60 * 1000) {
       res.setHeader("Cache-Control", "public, max-age=1800")
       return res.status(200).send(hit.v)
     }
 
+    // ✅ Cover hinzufügen
     const body = `
       search "${q.replace(/"/g, '\\"')}";
-      fields id, name, first_release_date, game_modes;
+      fields id, name, first_release_date, game_modes, cover.url;
       limit 10;
     `
 
@@ -49,22 +44,14 @@ module.exports = async function handler(req, res) {
     })
 
     const text = await igdbRes.text()
-
     if (!igdbRes.ok) {
-      return res.status(igdbRes.status).json({
-        error: "IGDB request failed",
-        status: igdbRes.status,
-        response: text,
-      })
+      return res.status(igdbRes.status).json({ error: "IGDB request failed", status: igdbRes.status, response: text })
     }
 
     mem.set(key, { t: now, v: text })
     res.setHeader("Cache-Control", "public, max-age=1800")
     return res.status(200).send(text)
   } catch (err) {
-    return res.status(500).json({
-      error: "Function crashed",
-      message: err?.message || String(err),
-    })
+    return res.status(500).json({ error: "Function crashed", message: err?.message || String(err) })
   }
 }
