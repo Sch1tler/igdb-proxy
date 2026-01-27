@@ -1,13 +1,21 @@
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   try {
-    const q = (req.query.q || "").toString().trim()
-    if (!q) return res.status(400).json({ error: "Missing q" })
+    const q = String(req.query.q || "").trim()
+    if (!q) {
+      res.statusCode = 400
+      return res.json({ error: "Missing q parameter" })
+    }
 
-    const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID
-    const TWITCH_ACCESS_TOKEN = process.env.TWITCH_ACCESS_TOKEN
+    const clientId = process.env.TWITCH_CLIENT_ID
+    const token = process.env.TWITCH_ACCESS_TOKEN
 
-    if (!TWITCH_CLIENT_ID || !TWITCH_ACCESS_TOKEN) {
-      return res.status(500).json({ error: "Missing TWITCH_CLIENT_ID / TWITCH_ACCESS_TOKEN" })
+    if (!clientId || !token) {
+      res.statusCode = 500
+      return res.json({
+        error: "Missing env vars",
+        hasClientId: Boolean(clientId),
+        hasToken: Boolean(token),
+      })
     }
 
     const body = `
@@ -19,16 +27,31 @@ export default async function handler(req, res) {
     const r = await fetch("https://api.igdb.com/v4/games", {
       method: "POST",
       headers: {
-        "Client-ID": TWITCH_CLIENT_ID,
-        Authorization: \`Bearer ${TWITCH_ACCESS_TOKEN}\`,
+        "Client-ID": clientId,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "text/plain",
       },
       body,
     })
 
     const text = await r.text()
-    res.status(r.status).send(text)
-  } catch (e) {
-    res.status(500).json({ error: String(e?.message || e) })
+
+    if (!r.ok) {
+      res.statusCode = r.status
+      return res.json({
+        error: "IGDB request failed",
+        status: r.status,
+        response: text,
+      })
+    }
+
+    res.statusCode = 200
+    return res.send(text)
+  } catch (err) {
+    res.statusCode = 500
+    return res.json({
+      error: "Function crashed",
+      message: err?.message || String(err),
+    })
   }
 }
